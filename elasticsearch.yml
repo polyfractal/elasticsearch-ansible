@@ -1,0 +1,51 @@
+---
+- hosts: es_cluster
+  user: root
+  tasks:
+  
+  - name: install python-apt
+    raw: "apt-get install -y python-apt"
+	
+  - name: update apt cache
+    apt: update-cache=yes
+	
+  - name: install htop
+    apt: pkg=htop state=installed
+  
+  - name: Copy OAB file
+    copy: src=/home/polyfractal/ansible/playbooks/files/oab-java.sh dest=/root/oab-java.sh mode=777
+
+  - name: Extract JRE and build local repository
+    shell: cd /root && ./oab-java.sh -7
+
+  - name: Install JRE
+    apt: pkg=oracle-java7-jre state=installed
+
+  - name: download ElasticSearch package
+    get_url: url=http://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-0.20.2.deb dest=~/elasticsearch-0.20.2.deb
+  
+  - name: Install ES .deb file
+    shell: dpkg -i ~/elasticsearch-0.20.2.deb
+ 
+  - name: Updating ES config    
+    copy: src=/home/polyfractal/ansible/playbooks/files/elasticsearch.conf.yml dest=/etc/elasticsearch/elasticsearch.yml
+    notify: restart elasticsearch
+
+  - name: Updating ES startup script
+    copy: src=/home/polyfractal/ansible/playbooks/files/elasticsearch.in.sh dest=/usr/share/elasticsearch/bin/elasticsearch.in.sh
+    notify: restart elasticsearch
+
+  - name: Install ES Head
+    command: /usr/share/elasticsearch/bin/plugin -install mobz/elasticsearch-head
+
+  - name: Install ES Paramedic
+    command: /usr/share/elasticsearch/bin/plugin -install karmi/elasticsearch-paramedic
+  
+  - name: Install ES BigDesk
+    command: /usr/share/elasticsearch/bin/plugin -install lukas-vlcek/bigdesk
+
+
+
+  handlers:
+    - name: restart elasticsearch
+      action: service name=elasticsearch state=restarted
